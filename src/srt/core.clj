@@ -1,25 +1,13 @@
 (ns srt.core
   (:refer-clojure :exclude [char])
+  (:use [cheshire.core :only [generate-string]])
   (:use [the.parsatron])
   (:gen-class))
-
-
-(def subtitles "1
-00:02:17,440 --> 00:02:20,375
-Senator, we're making
-our final approach into Coruscant.
-
-2
-00:02:20,476 --> 00:02:22,501
-Very good, Lieutenant.
-
-
-")
 
 (defn list->int [x]
   (Integer. (apply str x)))
 
-(def special-parser (token #{\space \tab \, \' \.}))
+(def special-parser (token #{\space \tab \, \' \. \? \! \: \> \< \/ \- \% \$ \" \’}))
 (def text-parser (choice
                    (many1 (digit))
                    (many1 (letter))
@@ -27,6 +15,13 @@ Very good, Lieutenant.
 
 (defn join [xs]
   (apply str (map (partial apply str) xs)))
+
+(def newline-parser (>> (char \return) (char \newline)))
+
+(defparser line-parser []
+  (let->> [text (many1 text-parser)
+           _ newline-parser]
+    (always (join text))))
 
 (defparser time-parser []
   (let->> [hours   (times 2 (digit))
@@ -50,23 +45,21 @@ Very good, Lieutenant.
 
 (defparser subtitle-parser []
   (let->> [number (many1 (digit))
-           _ (char \newline)
+           _ newline-parser
            timing (timing-parser)
-           _ (char \newline)
-           content (many1 text-parser)
-           _ (char \newline)
-           content2 (many text-parser)
-           _ (char \newline)
-           _ (char \newline)]
-    (always (assoc timing
-                   :content (str
-                              (join content) 
-                              \newline 
-                              (join content2))))))
+           _ newline-parser
+           content (many1 (line-parser))
+           _ (many newline-parser)
+           ]
+    (always (assoc timing :content (join content)))))
 
 (defn parse [text]
   (run (many1 (subtitle-parser)) text))
 
+(defn srt->json [srt]
+  (generate-string (parse srt) {:pretty true}))
+
 (defn -main
   [& args]
-  (println (parse subtitles)))
+  (let [srt (slurp (first args))]
+    (println (srt->json (rest srt)))))
