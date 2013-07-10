@@ -7,7 +7,7 @@
 (defn list->int [x]
   (Integer. (apply str x)))
 
-(def special-parser (token #{\space \tab \, \' \. \? \! \: \> \< \/ \- \% \$ \" \’}))
+(def special-parser (token #{\space \tab \, \' \. \? \! \: \> \< \/ \- \% \$ \" \’ \[ \]}))
 (def text-parser (choice
                    (many1 (digit))
                    (many1 (letter))
@@ -62,4 +62,4 @@
 (defn -main
   [& args]
   (let [srt (slurp (first args))]
-    (println (srt->json (rest srt)))))
+    (println (srt->json srt))))
